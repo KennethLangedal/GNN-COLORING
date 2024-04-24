@@ -10,4 +10,4 @@ int *first_fit_coloring(uint32_t N, const uint32_t *V, const uint32_t *E);
 int *first_fit_coloring_par(uint32_t N, const uint32_t *V, const uint32_t *E);
 
 void first_fit_runner(uint32_t N, const uint32_t *V, const uint32_t *E,
-                      int it, int k, int t_tot, int argc, ...);
+                      int it, int k, int t_tot, int ntc, const int *nt);

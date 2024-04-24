@@ -3,7 +3,6 @@
 #include "runner.h"
 
 #include <stdlib.h>
-#include <stdarg.h>
 #include <omp.h>
 
 struct sl_data
@@ -262,17 +261,14 @@ int *smallest_degree_last_coloring_par(uint32_t N, const uint32_t *V, const uint
 }
 
 void smallest_degree_last_runner(uint32_t N, const uint32_t *V, const uint32_t *E,
-                                 int it, int k, int t_tot, int argc, ...)
+                                 int it, int k, int t_tot, int ntc, const int *nt)
 {
-    va_list argv;
-    va_start(argv, argc);
     runner_test_full(N, V, E,
                      smallest_degree_last_setup,
                      smallest_degree_last_cleanup,
                      smallest_degree_last_internal,
                      smallest_degree_last_internal_par,
-                     "SL", it, k, t_tot, argc, argv);
-    va_end(argv);
+                     "SL", it, k, t_tot, ntc, nt);
 }
 
 void smallest_log_degree_last_ordering_internal(uint32_t N, const uint32_t *V, const uint32_t *E, void *sl, double *p)
@@ -462,15 +458,12 @@ int *smallest_log_degree_last_coloring_par(uint32_t N, const uint32_t *V, const 
 }
 
 void smallest_log_degree_last_runner(uint32_t N, const uint32_t *V, const uint32_t *E,
-                                     int it, int k, int t_tot, int argc, ...)
+                                     int it, int k, int t_tot, int ntc, const int *nt)
 {
-    va_list argv;
-    va_start(argv, argc);
     runner_test_full(N, V, E,
                      smallest_degree_last_setup,
                      smallest_degree_last_cleanup,
                      smallest_log_degree_last_internal,
                      smallest_log_degree_last_internal_par,
-                     "SLL", it, k, t_tot, argc, argv);
-    va_end(argv);
+                     "SLL", it, k, t_tot, ntc, nt);
 }

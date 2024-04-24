@@ -91,18 +91,15 @@ void gnn_ordering(uint32_t N, const uint32_t *V, const uint32_t *E, double *p, i
 }
 
 void gnn_runner(uint32_t N, const uint32_t *V, const uint32_t *E, int l,
-                int it, int k, int t_tot, int argc, ...)
+                int it, int k, int t_tot, int ntc, const int *nt)
 {
     layers = l;
     char name[256];
-    sprintf(name, "GNN-%d", layers);
-    va_list argv;
-    va_start(argv, argc);
+    sprintf(name, "GNN%d", layers);
     runner_test_full(N, V, E,
                      gnn_setup,
                      gnn_cleanup,
                      gnn_internal,
                      gnn_internal_par,
-                     name, it, k, t_tot, argc, argv);
-    va_end(argv);
+                     name, it, k, t_tot, ntc, nt);
 }

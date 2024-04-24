@@ -3,7 +3,6 @@
 #include "runner.h"
 
 #include <stdlib.h>
-#include <stdarg.h>
 #include <omp.h>
 
 void first_fit_ordering(uint32_t N, const uint32_t *V, const uint32_t *E, double *p)
@@ -88,15 +87,12 @@ void first_fit_internal_par(uint32_t N, const uint32_t *V, const uint32_t *E,
 }
 
 void first_fit_runner(uint32_t N, const uint32_t *V, const uint32_t *E,
-                      int it, int k, int t_tot, int argc, ...)
+                      int it, int k, int t_tot, int ntc, const int *nt)
 {
-    va_list argv;
-    va_start(argv, argc);
     runner_test_full(N, V, E,
                      first_fit_setup,
                      first_fit_cleanup,
                      first_fit_internal,
                      first_fit_internal_par,
-                     "FF", it, k, t_tot, argc, argv);
-    va_end(argv);
+                     "FF", it, k, t_tot, ntc, nt);
 }

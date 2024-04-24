@@ -14,4 +14,4 @@ void runner_test_full(uint32_t N, const uint32_t *V, const uint32_t *E,
                       void (*cleanup)(void *),
                       void (*f_seq)(uint32_t, const uint32_t *, const uint32_t *, void *, void *, double *, int *),
                       void (*f_par)(uint32_t, const uint32_t *, const uint32_t *, void *, void *, double *, int *),
-                      const char *s, int it, int k, int t_tot, int argc, va_list argv);
+                      const char *s, int it, int k, int t_tot, int ntc, const int *nt);

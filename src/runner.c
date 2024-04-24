@@ -80,9 +80,6 @@ void validate(uint32_t N, const uint32_t *V, const uint32_t *E, int *colors, int
         *C = c;
     else if (*C != c)
         printf("Unexpected number of colors (%d %d)\n", *C, c);
-
-    // printf("*");
-    // fflush(stdout);
 }
 
 void runner_test_full(uint32_t N, const uint32_t *V, const uint32_t *E,
@@ -90,14 +87,10 @@ void runner_test_full(uint32_t N, const uint32_t *V, const uint32_t *E,
                       void (*cleanup)(void *),
                       void (*f_seq)(uint32_t, const uint32_t *, const uint32_t *, void *, void *, double *, int *),
                       void (*f_par)(uint32_t, const uint32_t *, const uint32_t *, void *, void *, double *, int *),
-                      const char *s, int it, int k, int t_tot, int argc, va_list argv)
+                      const char *s, int it, int k, int t_tot, int ntc, const int *nt)
 {
-    int nt[argc];
-    for (int i = 0; i < argc; i++)
-        nt[i] = va_arg(argv, int);
-
     int n_colors[k];
-    double times[it][k][argc + 1];
+    double times[it][k][ntc + 1];
     for (int i = 0; i < k; i++)
         n_colors[i] = -1;
 
@@ -132,7 +125,7 @@ void runner_test_full(uint32_t N, const uint32_t *V, const uint32_t *E,
         }
 
         // Parallel run
-        for (int i = 0; i < argc; i++)
+        for (int i = 0; i < ntc; i++)
         {
             omp_set_num_threads(nt[i]);
             t0 = omp_get_wtime();
@@ -160,11 +153,10 @@ void runner_test_full(uint32_t N, const uint32_t *V, const uint32_t *E,
         }
     }
 
-    // printf("\n");
     for (int i = 0; i < k; i++)
     {
         printf("%s%d %d ", s, i, n_colors[i]);
-        for (int j = 0; j < argc + 1; j++)
+        for (int j = 0; j < ntc + 1; j++)
         {
             double best = 9999.9;
             for (int t = 0; t < it; t++)

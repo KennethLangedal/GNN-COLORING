@@ -11,159 +11,178 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
+#include <unistd.h>
+#include <ctype.h>
 
-typedef struct
+int test_ordering(uint32_t N, uint32_t *V, uint32_t *E,
+                  void *jp, double *p, int *color, int K)
 {
-    int ff, lf, llf, sl, sll, id, sda, sd, gnn2, gnn3, gnn4;
-} config;
-
-void test_all(uint32_t N, uint32_t *V, uint32_t *E, config c)
-{
-    void *jp = jones_plassmann_setup(N, V[N]);
-    double *p = malloc(sizeof(double) * (N + 8));
-    int *color = malloc(sizeof(int) * N);
-
-    if (c.ff)
+    jones_plassmann_internal(N, V, E, jp, p, color);
+    for (int i = 1; i < K; i++)
     {
-        first_fit_ordering(N, V, E, p);
+#pragma omp parallel for
+        for (uint32_t j = 0; j < N; j++)
+            p[j] = color[j];
+
         jones_plassmann_internal(N, V, E, jp, p, color);
-        int ff = validate_coloring_par(N, V, E, color);
-        printf("%d ", ff);
     }
-
-    if (c.lf)
-    {
-        largest_degree_first_ordering(N, V, E, p);
-        jones_plassmann_internal(N, V, E, jp, p, color);
-        int lf = validate_coloring_par(N, V, E, color);
-        printf("%d ", lf);
-    }
-
-    if (c.llf)
-    {
-        largest_log_degree_first_ordering(N, V, E, p);
-        jones_plassmann_internal(N, V, E, jp, p, color);
-        int llf = validate_coloring_par(N, V, E, color);
-        printf("%d ", llf);
-    }
-
-    if (c.sl)
-    {
-        smallest_degree_last_ordering(N, V, E, p);
-        jones_plassmann_internal(N, V, E, jp, p, color);
-        int sl = validate_coloring_par(N, V, E, color);
-        printf("%d ", sl);
-    }
-
-    if (c.sll)
-    {
-        smallest_log_degree_last_ordering(N, V, E, p);
-        jones_plassmann_internal(N, V, E, jp, p, color);
-        int sll = validate_coloring_par(N, V, E, color);
-        printf("%d ", sll);
-    }
-
-    if (c.id)
-    {
-        incidence_degree_ordering(N, V, E, p);
-        jones_plassmann_internal(N, V, E, jp, p, color);
-        int id = validate_coloring_par(N, V, E, color);
-        printf("%d ", id);
-    }
-
-    if (c.sda)
-    {
-        saturation_degree_ordering_alt(N, V, E, p);
-        jones_plassmann_internal(N, V, E, jp, p, color);
-        int sda = validate_coloring_par(N, V, E, color);
-        printf("%d ", sda);
-    }
-
-    if (c.sd)
-    {
-        saturation_degree_ordering(N, V, E, p);
-        jones_plassmann_internal(N, V, E, jp, p, color);
-        int sd = validate_coloring_par(N, V, E, color);
-        printf("%d ", sd);
-    }
-
-    if (c.gnn2)
-    {
-        gnn_ordering(N, V, E, p, 2);
-        jones_plassmann_internal(N, V, E, jp, p, color);
-        int gnn2 = validate_coloring_par(N, V, E, color);
-        printf("%d ", gnn2);
-    }
-
-    if (c.gnn3)
-    {
-        gnn_ordering(N, V, E, p, 3);
-        jones_plassmann_internal(N, V, E, jp, p, color);
-        int gnn3 = validate_coloring_par(N, V, E, color);
-        printf("%d ", gnn3);
-    }
-
-    if (c.gnn4)
-    {
-        gnn_ordering(N, V, E, p, 4);
-        jones_plassmann_internal(N, V, E, jp, p, color);
-        int gnn4 = validate_coloring_par(N, V, E, color);
-        printf("%d ", gnn4);
-    }
-
-    printf("\n");
-
-    jones_plassmann_cleanup(jp);
-    free(p);
-    free(color);
+    return validate_coloring_par(N, V, E, color);
 }
 
 int main(int argc, char **argv)
 {
+    char *graph_path = "";
+    int p = 0, s = 0, k = 1, t = 1, v = 0;
+
+    int c;
+    opterr = 0;
+
+    while ((c = getopt(argc, argv, "g:pck:t:vh")) != -1)
+    {
+        switch (c)
+        {
+        case 'g':
+            graph_path = optarg;
+            break;
+        case 'p':
+            p = 1;
+            break;
+        case 'c':
+            s = 1;
+            break;
+        case 'k':
+            k = atoi(optarg);
+            break;
+        case 't':
+            t = atoi(optarg);
+            break;
+        case 'v':
+            v = 1;
+            break;
+        case 'h':
+            printf("Usage: ./coloring [options] tc1 tc2 ...\n");
+            printf("tcx means number of threads to try\n");
+            printf("Options are:\n");
+            printf("-g path, sets input graph file\n");
+            printf("-p, run parallel experiments\n");
+            printf("-c, compute colors used fast\n");
+            printf("-k #, number of repeated colorings\n");
+            printf("-t #, total number of threads for faster I/O and validation\n");
+            printf("-v, verbose\n");
+            printf("-h, print this help message\n");
+            break;
+
+        default:
+            printf("Unknown option %c\n", c);
+            return 1;
+        }
+    }
+
+    int ntc = argc - optind;
+    int nt[ntc];
+    for (int i = optind; i < argc; i++)
+    {
+        nt[i - optind] = atoi(argv[i]);
+    }
+
     double t0 = omp_get_wtime();
     uint32_t N, *V, *E;
-    FILE *f = fopen(argv[1], "r");
+    FILE *f = fopen(graph_path, "r");
+    if (f == NULL)
+    {
+        printf("Unable to open file %s\n", graph_path);
+        return 1;
+    }
     mtx_parse_par(f, &N, &V, &E);
     fclose(f);
     double t1 = omp_get_wtime(), t2;
 
-    // printf("Parsing took: %.4lfs, |V|=%u, |E|=%u\n", t1 - t0, N, V[N]);
+    if (v)
+        printf("Parsing took: %.4lfs, |V|=%u, |E|=%u\n", t1 - t0, N, V[N]);
 
     t0 = omp_get_wtime();
     graph_sort_edges_par(N, V, E);
     t1 = omp_get_wtime();
 
-    // printf("Sorting edges took: %.4lfs\n", t1 - t0);
+    if (v)
+        printf("Sorting edges took: %.4lfs\n", t1 - t0);
 
     t0 = omp_get_wtime();
     graph_make_simple(N, V, &E);
     t1 = omp_get_wtime();
 
-    // printf("Making the graph simple took %.4lfs, new size |V|=%u, |E|=%u\n", t1 - t0, N, V[N]);
+    if (v)
+        printf("Making the graph simple took %.4lfs, new size |V|=%u, |E|=%u\n", t1 - t0, N, V[N]);
 
-    // printf("%s %u %u\n", argv[1], N, V[N]);
+    if (s && !p)
+    {
+        void *jp = jones_plassmann_setup(N, V[N]);
+        double *p = aligned_alloc(32, sizeof(double) * (N + 8));
+        int *color = malloc(sizeof(int) * N);
 
-    // first_fit_runner(N, V, E, 5, 1, 32, 6, 1, 2, 4, 8, 16, 32);
-    // largest_degree_first_runner(N, V, E, 5, 1, 32, 6, 1, 2, 4, 8, 16, 32);
-    // largest_log_degree_first_runner(N, V, E, 5, 1, 32, 6, 1, 2, 4, 8, 16, 32);
-    // smallest_degree_last_runner(N, V, E, 5, 1, 32, 6, 1, 2, 4, 8, 16, 32);
-    // smallest_log_degree_last_runner(N, V, E, 5, 1, 32, 6, 1, 2, 4, 8, 16, 32);
-    // runner_test_ordering_time(N, V, E, "ID", incidence_degree_ordering);
-    // runner_test_ordering_time(N, V, E, "SD", saturation_degree_ordering);
+        int ff, lf, llf, sl, sll, id, sda, sd, gnn2, gnn3, gnn4;
 
-    printf("%s %d %d ", argv[1], N, V[N]);
+        first_fit_ordering_par(N, V, E, p);
+        ff = test_ordering(N, V, E, jp, p, color, k);
 
-    config c = {.gnn2 = 1, .gnn3 = 1, .gnn4 = 1};
-    test_all(N, V, E, c);
+        largest_degree_first_ordering(N, V, E, p);
+        lf = test_ordering(N, V, E, jp, p, color, k);
 
-    // runner_test_ordering_time(N, V, E, "FF", first_fit_ordering);
-    // runner_test_ordering_time(N, V, E, "LF", largest_degree_first_ordering);
-    // runner_test_ordering_time(N, V, E, "LLF", largest_log_degree_first_ordering);
-    // runner_test_ordering_time(N, V, E, "SL", smallest_degree_last_ordering);
-    // runner_test_ordering_time(N, V, E, "SLL", smallest_log_degree_last_ordering);
-    // runner_test_ordering_time(N, V, E, "ID", incidence_degree_ordering);
-    // runner_test_ordering_time(N, V, E, "SD", saturation_degree_ordering);
-    // printf("\n");
+        largest_log_degree_first_ordering(N, V, E, p);
+        llf = test_ordering(N, V, E, jp, p, color, k);
+
+        smallest_degree_last_ordering(N, V, E, p);
+        sl = test_ordering(N, V, E, jp, p, color, k);
+
+        smallest_log_degree_last_ordering(N, V, E, p);
+        sll = test_ordering(N, V, E, jp, p, color, k);
+
+        gnn_ordering(N, V, E, p, 2);
+        gnn2 = test_ordering(N, V, E, jp, p, color, k);
+
+        gnn_ordering(N, V, E, p, 3);
+        gnn3 = test_ordering(N, V, E, jp, p, color, k);
+
+        gnn_ordering(N, V, E, p, 4);
+        gnn4 = test_ordering(N, V, E, jp, p, color, k);
+
+        incidence_degree_ordering(N, V, E, p);
+        id = test_ordering(N, V, E, jp, p, color, k);
+
+        saturation_degree_ordering_alt(N, V, E, p);
+        sda = test_ordering(N, V, E, jp, p, color, k);
+
+        saturation_degree_ordering(N, V, E, p);
+        sd = test_ordering(N, V, E, jp, p, color, k);
+
+        if (v)
+            printf("ff lf llf sl sll id sda sd gnn2 gnn3 gnn4\n");
+        printf("%d %d %d %d %d %d %d %d %d %d %d\n",
+               ff, lf, llf, sl, sll, id, sda, sd, gnn2, gnn3, gnn4);
+
+        jones_plassmann_cleanup(jp);
+        free(p);
+        free(color);
+    }
+
+    if (p)
+    {
+        if (v)
+        {
+            printf("name colors seq ");
+            for (int i = 0; i < ntc; i++)
+                printf("%d ", nt[i]);
+            printf("\n");
+        }
+        first_fit_runner(N, V, E, 5, k, t, ntc, nt);
+        largest_degree_first_runner(N, V, E, 5, k, t, ntc, nt);
+        largest_log_degree_first_runner(N, V, E, 5, k, t, ntc, nt);
+        smallest_degree_last_runner(N, V, E, 5, k, t, ntc, nt);
+        smallest_log_degree_last_runner(N, V, E, 5, k, t, ntc, nt);
+        gnn_runner(N, V, E, 2, 5, k, t, ntc, nt);
+        gnn_runner(N, V, E, 3, 5, k, t, ntc, nt);
+        gnn_runner(N, V, E, 4, 5, k, t, ntc, nt);
+    }
 
     free(V);
     free(E);

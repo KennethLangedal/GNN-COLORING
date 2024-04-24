@@ -3,7 +3,6 @@
 #include "runner.h"
 
 #include <stdlib.h>
-#include <stdarg.h>
 #include <omp.h>
 
 /*
@@ -71,17 +70,14 @@ int *largest_degree_first_coloring_par(uint32_t N, const uint32_t *V, const uint
 }
 
 void largest_degree_first_runner(uint32_t N, const uint32_t *V, const uint32_t *E,
-                                 int it, int k, int t_tot, int argc, ...)
+                                 int it, int k, int t_tot, int ntc, const int *nt)
 {
-    va_list argv;
-    va_start(argv, argc);
     runner_test_full(N, V, E,
                      largest_degree_first_setup,
                      largest_degree_first_cleanup,
                      largest_degree_first_internal,
                      largest_degree_first_internal_par,
-                     "LF", it, k, t_tot, argc, argv);
-    va_end(argv);
+                     "LF", it, k, t_tot, ntc, nt);
 }
 
 /*
@@ -155,15 +151,12 @@ int *largest_log_degree_first_coloring_par(uint32_t N, const uint32_t *V, const 
 }
 
 void largest_log_degree_first_runner(uint32_t N, const uint32_t *V, const uint32_t *E,
-                                     int it, int k, int t_tot, int argc, ...)
+                                     int it, int k, int t_tot, int ntc, const int *nt)
 {
-    va_list argv;
-    va_start(argv, argc);
     runner_test_full(N, V, E,
                      largest_degree_first_setup,
                      largest_degree_first_cleanup,
                      largest_log_degree_first_internal,
                      largest_log_degree_first_internal_par,
-                     "LLF", it, k, t_tot, argc, argv);
-    va_end(argv);
+                     "LLF", it, k, t_tot, ntc, nt);
 }
