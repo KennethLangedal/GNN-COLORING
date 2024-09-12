@@ -14,6 +14,21 @@
 #include <unistd.h>
 #include <ctype.h>
 
+const char *help = "GNN-based greedy graph coloring\n"
+                   "\nExample use: ./coloring -g [path to graph] [options] tc1 tc2 ... tcn\n"
+                   "\nThe output of the program without -v is a single line per heuristic on the form:\n"
+                   "\nheuristic_#culberson #colors_used seconds_sequential seconds_tc1 seconds_tc2 ... seconds_tcn\n"
+                   "\nWhere tcx is a number of threads to run experiments for\n"
+                   "The options are:"
+                   "\n-h \t\tDisplay this help message\n"
+                   "-v \t\tVerbose mode, output more updates to STDOUT\n"
+                   "-g path* \tPath to the input graph on the Matrix Market (mtx) format\n"
+                   "-q \t\tAlternate mode to quickly compute colors used by each heuristic\n"
+                   "-f \t\tOnly run FF, LF, SL, and GNN (no ID, SD, or LOG versions)\n"
+                   "-c # \t\tNumber of repeated colorings using Culberson\n"
+                   "-t # \t\tNumber of threads to use for faster setup\n"
+                   "\n* Mandatory input";
+
 int test_ordering(uint32_t N, uint32_t *V, uint32_t *E,
                   void *jp, double *p, int *color, int K)
 {
@@ -32,29 +47,26 @@ int test_ordering(uint32_t N, uint32_t *V, uint32_t *E,
 int main(int argc, char **argv)
 {
     char *graph_path = "";
-    int p = 0, s = 0, f = 0, k = 1, t = 1, v = 0;
+    int q = 0, f = 0, c = 1, t = 1, v = 0;
 
-    int c;
+    int command;
     opterr = 0;
 
-    while ((c = getopt(argc, argv, "g:pcfk:t:vh")) != -1)
+    while ((command = getopt(argc, argv, "hvfqg:c:t:")) != -1)
     {
-        switch (c)
+        switch (command)
         {
         case 'g':
             graph_path = optarg;
             break;
-        case 'p':
-            p = 1;
-            break;
-        case 'c':
-            s = 1;
+        case 'q':
+            q = 1;
             break;
         case 'f':
             f = 1;
             break;
-        case 'k':
-            k = atoi(optarg);
+        case 'c':
+            c = atoi(optarg);
             break;
         case 't':
             t = atoi(optarg);
@@ -63,21 +75,21 @@ int main(int argc, char **argv)
             v = 1;
             break;
         case 'h':
-            printf("Usage: ./coloring [options] tc1 tc2 ...\n");
-            printf("tcx means number of threads to try\n");
-            printf("Options are:\n");
-            printf("-g path, sets input graph file\n");
-            printf("-p, run parallel experiments\n");
-            printf("-c, compute colors used fast\n");
-            printf("-f, only do FF, LF, SL, and GNN\n");
-            printf("-k #, number of repeated colorings\n");
-            printf("-t #, total number of threads for faster I/O and validation\n");
-            printf("-v, verbose\n");
-            printf("-h, print this help message\n");
-            break;
+            printf("%s\n", help);
+            return 0;
+        case '?':
+            if (optopt == 'c' || optopt == 'g' || optopt == 't')
+                fprintf(stderr, "Option -%c requires an argument.\n", optopt);
+            else if (isprint(optopt))
+                fprintf(stderr, "Unknown option `-%c'.\n", optopt);
+            else
+                fprintf(stderr,
+                        "Unknown option character `\\x%x'.\n",
+                        optopt);
+            return 1;
 
         default:
-            printf("Unknown option %c\n", c);
+            printf("Unknown option %c\n", command);
             return 1;
         }
     }
@@ -87,6 +99,8 @@ int main(int argc, char **argv)
     for (int i = optind; i < argc; i++)
     {
         nt[i - optind] = atoi(argv[i]);
+        if (nt[i - optind] > t)
+            t = nt[i - optind];
     }
 
     double t0 = omp_get_wtime();
@@ -118,7 +132,7 @@ int main(int argc, char **argv)
     if (v)
         printf("Making the graph simple took %.4lfs, new size |V|=%u, |E|=%u\n", t1 - t0, N, V[N]);
 
-    if (s && !p)
+    if (q)
     {
         void *jp = jones_plassmann_setup(N, V[N]);
         double *p = aligned_alloc(32, sizeof(double) * (N + 8));
@@ -128,43 +142,43 @@ int main(int argc, char **argv)
             id = 0, sda = 0, sd = 0, gnn2 = 0, gnn3 = 0, gnn4 = 0;
 
         first_fit_ordering_par(N, V, E, p);
-        ff = test_ordering(N, V, E, jp, p, color, k);
+        ff = test_ordering(N, V, E, jp, p, color, c);
 
         largest_degree_first_ordering(N, V, E, p);
-        lf = test_ordering(N, V, E, jp, p, color, k);
+        lf = test_ordering(N, V, E, jp, p, color, c);
 
         smallest_degree_last_ordering(N, V, E, p);
-        sl = test_ordering(N, V, E, jp, p, color, k);
+        sl = test_ordering(N, V, E, jp, p, color, c);
 
         gnn_ordering(N, V, E, p, 2);
-        gnn2 = test_ordering(N, V, E, jp, p, color, k);
+        gnn2 = test_ordering(N, V, E, jp, p, color, c);
 
         gnn_ordering(N, V, E, p, 3);
-        gnn3 = test_ordering(N, V, E, jp, p, color, k);
+        gnn3 = test_ordering(N, V, E, jp, p, color, c);
 
         gnn_ordering(N, V, E, p, 4);
-        gnn4 = test_ordering(N, V, E, jp, p, color, k);
+        gnn4 = test_ordering(N, V, E, jp, p, color, c);
 
         if (!f)
         {
             largest_log_degree_first_ordering(N, V, E, p);
-            llf = test_ordering(N, V, E, jp, p, color, k);
+            llf = test_ordering(N, V, E, jp, p, color, c);
 
             smallest_log_degree_last_ordering(N, V, E, p);
-            sll = test_ordering(N, V, E, jp, p, color, k);
+            sll = test_ordering(N, V, E, jp, p, color, c);
 
             incidence_degree_ordering(N, V, E, p);
-            id = test_ordering(N, V, E, jp, p, color, k);
+            id = test_ordering(N, V, E, jp, p, color, c);
 
             saturation_degree_ordering_alt(N, V, E, p);
-            sda = test_ordering(N, V, E, jp, p, color, k);
+            sda = test_ordering(N, V, E, jp, p, color, c);
 
             saturation_degree_ordering(N, V, E, p);
-            sd = test_ordering(N, V, E, jp, p, color, k);
+            sd = test_ordering(N, V, E, jp, p, color, c);
         }
 
         if (v)
-            printf("ff lf llf sl sll id sda sd gnn2 gnn3 gnn4\n");
+            printf("FF LF LLF SL SLL ID SDA SD GNN2 GNN3 GNN4\n");
         printf("%d %d %d %d %d %d %d %d %d %d %d\n",
                ff, lf, llf, sl, sll, id, sda, sd, gnn2, gnn3, gnn4);
 
@@ -173,7 +187,7 @@ int main(int argc, char **argv)
         free(color);
     }
 
-    if (p)
+    if (!q)
     {
         if (v)
         {
@@ -182,16 +196,16 @@ int main(int argc, char **argv)
                 printf("%d ", nt[i]);
             printf("\n");
         }
-        first_fit_runner(N, V, E, 5, k, t, ntc, nt);
-        largest_degree_first_runner(N, V, E, 5, k, t, ntc, nt);
+        first_fit_runner(N, V, E, 5, c, t, ntc, nt);
+        largest_degree_first_runner(N, V, E, 5, c, t, ntc, nt);
         if (!f)
-            largest_log_degree_first_runner(N, V, E, 5, k, t, ntc, nt);
-        smallest_degree_last_runner(N, V, E, 5, k, t, ntc, nt);
+            largest_log_degree_first_runner(N, V, E, 5, c, t, ntc, nt);
+        smallest_degree_last_runner(N, V, E, 5, c, t, ntc, nt);
         if (!f)
-            smallest_log_degree_last_runner(N, V, E, 5, k, t, ntc, nt);
-        gnn_runner(N, V, E, 2, 5, k, t, ntc, nt);
-        gnn_runner(N, V, E, 3, 5, k, t, ntc, nt);
-        gnn_runner(N, V, E, 4, 5, k, t, ntc, nt);
+            smallest_log_degree_last_runner(N, V, E, 5, c, t, ntc, nt);
+        gnn_runner(N, V, E, 2, 5, c, t, ntc, nt);
+        gnn_runner(N, V, E, 3, 5, c, t, ntc, nt);
+        gnn_runner(N, V, E, 4, 5, c, t, ntc, nt);
     }
 
     free(V);

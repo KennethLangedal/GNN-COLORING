@@ -155,7 +155,7 @@ void runner_test_full(uint32_t N, const uint32_t *V, const uint32_t *E,
 
     for (int i = 0; i < k; i++)
     {
-        printf("%s%d %d ", s, i, n_colors[i]);
+        printf("%s_%d %d ", s, i, n_colors[i]);
         for (int j = 0; j < ntc + 1; j++)
         {
             double best = 9999.9;
