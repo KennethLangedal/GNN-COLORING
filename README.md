@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/791199711.svg)](https://zenodo.org/doi/10.5281/zenodo.13784414)
+
 # GNN-based greedy graph coloring
 
 Build by calling ```make```.
