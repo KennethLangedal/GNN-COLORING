@@ -1,6 +1,7 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![DOI](https://zenodo.org/badge/791199711.svg)](https://zenodo.org/doi/10.5281/zenodo.13784414)
 
-# GNN-based greedy graph coloring
+# GNN-based greedy Graph Coloring
 
 Build by calling ```make```.
 
